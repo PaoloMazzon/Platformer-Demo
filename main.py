@@ -90,34 +90,34 @@ def main():
     kn.time.set_target(60)
 
     # Load assets
-    level_tmx = kn.TileMap("level.tmx")
+    level_tmx = kn.TileMap("assets/level.tmx")
     ground_layer = level_tmx.get_layer("ground")
     decoration_layer = level_tmx.get_layer("decoration")
     spr_player_idle_right = kn.AnimationController()
-    spr_player_idle_right.load_sprite_sheet("player_idle_right", "player_idle_right.png", (16, 16), 2)
+    spr_player_idle_right.load_sprite_sheet("player_idle_right", "assets/player_idle_right.png", (16, 16), 2)
     spr_player_idle_left = kn.AnimationController()
-    spr_player_idle_left.load_sprite_sheet("player_idle_left", "player_idle_left.png", (16, 16), 2)
+    spr_player_idle_left.load_sprite_sheet("player_idle_left", "assets/player_idle_left.png", (16, 16), 2)
     spr_player_walk_right = kn.AnimationController()
-    spr_player_walk_right.load_sprite_sheet("player_walk_right", "player_walk_right.png", (16, 16), 10)
+    spr_player_walk_right.load_sprite_sheet("player_walk_right", "assets/player_walk_right.png", (16, 16), 10)
     spr_player_walk_left = kn.AnimationController()
-    spr_player_walk_left.load_sprite_sheet("player_walk_left", "player_walk_left.png", (16, 16), 10)
+    spr_player_walk_left.load_sprite_sheet("player_walk_left", "assets/player_walk_left.png", (16, 16), 10)
     spr_player_jump_right = kn.AnimationController()
-    spr_player_jump_right.load_sprite_sheet("player_jump_right", "player_jump_right.png", (16, 16), 20)
+    spr_player_jump_right.load_sprite_sheet("player_jump_right", "assets/player_jump_right.png", (16, 16), 20)
     spr_player_jump_left = kn.AnimationController()
-    spr_player_jump_left.load_sprite_sheet("player_jump_left", "player_jump_left.png", (16, 16), 20)
+    spr_player_jump_left.load_sprite_sheet("player_jump_left", "assets/player_jump_left.png", (16, 16), 20)
     spr_player_jump_right_first = kn.AnimationController()
-    spr_player_jump_right_first.load_sprite_sheet("player_jump_right_first", "player_jump_right_first.png", (16, 16), 20)
+    spr_player_jump_right_first.load_sprite_sheet("player_jump_right_first", "assets/player_jump_right_first.png", (16, 16), 20)
     spr_player_jump_left_first = kn.AnimationController()
-    spr_player_jump_left_first.load_sprite_sheet("player_jump_left_first", "player_jump_left_first.png", (16, 16), 20)
-    tex_ground_part = kn.Texture("ground_part.png")
-    aud_jump = kn.Audio("jump.wav", 0.45)
-    aud_walk = kn.Audio("walk.wav", 0.30)
-    aud_land = kn.Audio("land.wav", 0.30)
+    spr_player_jump_left_first.load_sprite_sheet("player_jump_left_first", "assets/player_jump_left_first.png", (16, 16), 20)
+    tex_ground_part = kn.Texture("assets/ground_part.png")
+    aud_jump = kn.Audio("assets/jump.wav", 0.45)
+    aud_walk = kn.Audio("assets/walk.wav", 0.30)
+    aud_land = kn.Audio("assets/land.wav", 0.30)
     tex_bg_layers = [
-        kn.Texture("sun.png"),
-        kn.Texture("layer1.png"),
-        kn.Texture("layer2.png"),
-        kn.Texture("layer3.png"),
+        kn.Texture("assets/sun.png"),
+        kn.Texture("assets/layer1.png"),
+        kn.Texture("assets/layer2.png"),
+        kn.Texture("assets/layer3.png"),
     ]
     player_current_sprite = spr_player_idle_right
     camera = kn.Camera()
@@ -156,7 +156,7 @@ def main():
     
     # Create tilemap from tiled
     tilemap = TileMap(100, 18, 16, 16)
-    tree = ET.parse("level.tmx")
+    tree = ET.parse("assets/level.tmx")
     root = tree.getroot()
     data = root.find(".//layer[@name='ground']/data").text.strip()
     tiles = [int(x) for x in data.replace("\n", "").split(",") if x.strip()]
