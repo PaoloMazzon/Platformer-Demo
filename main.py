@@ -108,9 +108,17 @@ def main():
     aud_land = kn.Audio("assets/land.wav", 0.30)
     tex_bg_layers = [
         kn.Texture("assets/sun.png"),
+        kn.Texture("assets/layer_mountains.png"),
         kn.Texture("assets/layer1.png"),
         kn.Texture("assets/layer2.png"),
         kn.Texture("assets/layer3.png"),
+    ]
+    bg_layer_parallaxes = [
+        0.999, 
+        0.99,
+        0.95, 
+        0.9, 
+        0.7
     ]
     camera = kn.Camera()
 
@@ -232,11 +240,11 @@ def main():
             kn.Audio.play(aud_walk)
 
         # Draw background
-        kn.renderer.clear(kn.color.from_hex("#7bb9b9"))
+        kn.renderer.clear(kn.color.from_hex("#9feaec"))
         def tile_horizontally(t: kn.Texture, x: float):
             for i in range(ceil(tilemap.total_width() / t.get_rect().w)):
                 kn.renderer.draw(t, kn.Rect((x + (i * t.get_rect().w)) - (i + 1), 0, t.get_rect().w, t.get_rect().h))
-        for (para, tex_layer) in zip([0.99, 0.9, 0.85, 0.7], tex_bg_layers):
+        for (para, tex_layer) in zip(bg_layer_parallaxes, tex_bg_layers):
             tile_horizontally(tex_layer, camera.pos.x * para)
 
         # Draw ground tilemap
