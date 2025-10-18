@@ -93,22 +93,15 @@ def main():
     level_tmx = kn.TileMap("assets/level.tmx")
     ground_layer = level_tmx.get_layer("ground")
     decoration_layer = level_tmx.get_layer("decoration")
-    spr_player_idle_right = kn.AnimationController()
-    spr_player_idle_right.load_sprite_sheet("player_idle_right", "assets/player_idle_right.png", (16, 16), 2)
-    spr_player_idle_left = kn.AnimationController()
-    spr_player_idle_left.load_sprite_sheet("player_idle_left", "assets/player_idle_left.png", (16, 16), 2)
-    spr_player_walk_right = kn.AnimationController()
-    spr_player_walk_right.load_sprite_sheet("player_walk_right", "assets/player_walk_right.png", (16, 16), 10)
-    spr_player_walk_left = kn.AnimationController()
-    spr_player_walk_left.load_sprite_sheet("player_walk_left", "assets/player_walk_left.png", (16, 16), 10)
-    spr_player_jump_right = kn.AnimationController()
-    spr_player_jump_right.load_sprite_sheet("player_jump_right", "assets/player_jump_right.png", (16, 16), 20)
-    spr_player_jump_left = kn.AnimationController()
-    spr_player_jump_left.load_sprite_sheet("player_jump_left", "assets/player_jump_left.png", (16, 16), 20)
-    spr_player_jump_right_first = kn.AnimationController()
-    spr_player_jump_right_first.load_sprite_sheet("player_jump_right_first", "assets/player_jump_right_first.png", (16, 16), 20)
-    spr_player_jump_left_first = kn.AnimationController()
-    spr_player_jump_left_first.load_sprite_sheet("player_jump_left_first", "assets/player_jump_left_first.png", (16, 16), 20)
+    player_animations = kn.AnimationController()
+    player_animations.load_sprite_sheet("player_idle_right", "assets/player_idle_right.png", (16, 16), 2)
+    player_animations.load_sprite_sheet("player_idle_left", "assets/player_idle_left.png", (16, 16), 2)
+    player_animations.load_sprite_sheet("player_walk_right", "assets/player_walk_right.png", (16, 16), 10)
+    player_animations.load_sprite_sheet("player_walk_left", "assets/player_walk_left.png", (16, 16), 10)
+    player_animations.load_sprite_sheet("player_jump_right", "assets/player_jump_right.png", (16, 16), 20)
+    player_animations.load_sprite_sheet("player_jump_left", "assets/player_jump_left.png", (16, 16), 20)
+    player_animations.load_sprite_sheet("player_jump_right_first", "assets/player_jump_right_first.png", (16, 16), 20)
+    player_animations.load_sprite_sheet("player_jump_left_first", "assets/player_jump_left_first.png", (16, 16), 20)
     tex_ground_part = kn.Texture("assets/ground_part.png")
     aud_jump = kn.Audio("assets/jump.wav", 0.45)
     aud_walk = kn.Audio("assets/walk.wav", 0.30)
@@ -119,7 +112,6 @@ def main():
         kn.Texture("assets/layer2.png"),
         kn.Texture("assets/layer3.png"),
     ]
-    player_current_sprite = spr_player_idle_right
     camera = kn.Camera()
 
     # Gameplay variables
@@ -207,8 +199,6 @@ def main():
         # Allows the player to jump higher if they hold jump down
         if kn.key.is_pressed(kn.Scancode.S_UP) and just_pressed_timer > 0:
             v_speed -= jump_increase_velocity + gravity
-            spr_player_jump_left.rewind()
-            spr_player_jump_right.rewind()
 
         # Initial jump press
         if kn.key.is_just_pressed(kn.Scancode.S_UP) and (jump_grace_duration > 0 or current_extra_jumps > 0):
@@ -256,19 +246,19 @@ def main():
         # Draw player
         if facing == -1:
             if v_speed != 0:
-                player_current_sprite = spr_player_jump_left if in_extra_jump else spr_player_jump_left_first
+                player_animations.set("player_jump_left" if in_extra_jump else "player_jump_left_first")
             elif h_speed != 0:
-                player_current_sprite = spr_player_walk_left
+                player_animations.set("player_walk_left")
             else:
-                player_current_sprite = spr_player_idle_left
+                player_animations.set("player_idle_left")
         else:
             if v_speed != 0:
-                player_current_sprite = spr_player_jump_right if in_extra_jump else spr_player_jump_right_first
+                player_animations.set("player_jump_right" if in_extra_jump else "player_jump_right_first")
             elif h_speed != 0:
-                player_current_sprite = spr_player_walk_right
+                player_animations.set("player_walk_right")
             else:
-                player_current_sprite = spr_player_idle_right
-        frame = player_current_sprite.current_frame
+                player_animations.set("player_idle_right")
+        frame = player_animations.current_frame
         kn.renderer.draw(frame.tex, kn.Rect(player_x, player_y, 16, 16), frame.src)
 
         # Draw particles

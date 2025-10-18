@@ -1,3 +1,6 @@
 .vscode/
 *.pyc
 regards.md
+build/
+dist/
+main.spec
