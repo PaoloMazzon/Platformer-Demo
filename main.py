@@ -184,7 +184,7 @@ def main():
     # We are using tilemap-based collisions, and KrakenEngine currently does not support getting
     # the tilemap data from the raw tiled file, so we manually extract it from the .tmx file here.
     # This is just one possible way to approach this problem.
-    tilemap = TileMap(100, 18, 16, 16)
+    tilemap = TileMap(200, 18, 16, 16)
     tree = ET.parse("assets/level.tmx")
     root = tree.getroot()
     data = root.find(".//layer[@name='ground']/data").text.strip()
@@ -194,7 +194,7 @@ def main():
     for i in range(len(tiles)):
         tilemap.set(acc, y, tiles[i])
         acc += 1
-        if acc == 100:
+        if acc == 200:
             acc = 0
             y += 1
 
