@@ -1,12 +1,14 @@
-from math import ceil, cos, floor, sin
+from math import ceil, cos, floor, pi, sin
 import pykraken as kn
 import xml.etree.ElementTree as ET
 from random import uniform as rand
 
-# Tool to do collisions with grids in O(1) time. Collisions with TileMap work by
-# checking the four corners on a hitbox and seeing if any of those four corners
-# are inside an occupied cell in the tilemap. This type of collision only works
-# when the hitbox is smaller or equal size to a cell in the tilemap.
+############################## Tilemap Abstraction ###############################
+# Tool to do collisions with grids in O(1) time. Collisions with TileMap work by #
+# checking the four corners on a hitbox and seeing if any of those four corners  #
+# are inside an occupied cell in the tilemap. This type of collision only works  #
+# when the hitbox is smaller or equal size to a cell in the tilemap.             #
+##################################################################################
 class TileMap:
     def __init__(self, width: int, height: int, cell_width: float, cell_height: float):
         self.width = width
@@ -85,6 +87,68 @@ class Particle:
         kn.renderer.draw(self.tex, (self.x, self.y))
         return self.lifetime <= 0
 
+# Moving walls, they move between two fixed points
+class DynamicWall:
+    # Creates a dynamic wall that goes between (x1, y1) and (x2, y2). It will take duration frames to go one
+    # way, and it will pause at that stop for pause frames. Its hitbox is determined by its texture
+    def __init__(self, tex: kn.Texture, x1: float, y1: float, x2: float, y2: float, duration: int, pause: int):
+        self.tex = tex
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+        self.duration = duration
+        self.pause = pause
+        self.time = duration
+        self.paused = False
+        self.x = x1
+        self.y = y1
+        self.max_time = duration
+
+    # Returns the velocity of this wall at this moment in time
+    def velocity(self) -> tuple[float, float]:
+        if self.paused: return (0, 0)
+        return ((self.x1 - self.x2) / self.max_time, (self.y2 - self.y1) / self.max_time)
+    
+    # Returns a rectangle representing this wall's hitbox at this moment
+    def hitbox(self) -> kn.Rect:
+        return kn.Rect(self.x, self.y, self.tex.get_rect().w, self.tex.get_rect().h)
+
+    # Returns true if a hitbox is intersecting with this wall
+    def colliding(self, x: float, y: float, hitbox: kn.Rect) -> bool:
+        local_hitbox = kn.Rect(self.x, self.y, self.tex.get_rect().w, self.tex.get_rect().h)
+        other_hitbox = kn.Rect(x + hitbox.x, y + hitbox.y, hitbox.w, hitbox.h)
+        return other_hitbox.collide_rect(local_hitbox)
+
+    # Only updates the wall
+    def update(self) -> None:
+        # Handle timing, if we are done pausing we swap the start and destination points
+        self.time -= 1
+        if self.time <= 0:
+            if self.paused:
+                self.time = self.duration
+                self.max_time = self.duration
+            else:
+                self.time = self.pause
+                self.max_time = self.pause
+                x1 = self.x2
+                y1 = self.y2
+                self.x2 = self.x1
+                self.y2 = self.y1
+                self.x1 = x1
+                self.y1 = y1
+            self.paused = not self.paused
+
+        # Interpolate our position
+        if not self.paused:
+            percent = self.time / self.max_time
+            self.x = self.x1 + (percent * (self.x2 - self.x1))
+            self.y = self.y1 + (percent * (self.y2 - self.y1))
+    
+    # Draws the wall
+    def draw(self) -> None:
+        kn.renderer.draw(self.tex, (self.x, self.y), anchor=kn.Anchor.TOP_LEFT)
+
 def clamp(val, min, max):
     if val > max: return max
     if val < min: return min
@@ -116,6 +180,7 @@ def main():
     player_animations.load_sprite_sheet("player_jump_right_first", "assets/player_jump_right_first.png", (16, 16), 20)
     player_animations.load_sprite_sheet("player_jump_left_first", "assets/player_jump_left_first.png", (16, 16), 20)
     tex_ground_part = kn.Texture("assets/ground_part.png")
+    tex_moving_wall = kn.Texture("assets/moving_wall.png")
     aud_jump = kn.Audio("assets/jump.wav", 0.45)
     aud_walk = kn.Audio("assets/walk.wav", 0.30)
     aud_land = kn.Audio("assets/land.wav", 0.30)
@@ -174,6 +239,29 @@ def main():
     walk_timer = 12 # one in every <x> frames the walk sound effect is played
     particles = []
 
+    # Dynamic walls
+    dynamic_walls = []
+    dynamic_walls.append(DynamicWall(tex_moving_wall, 43 * 16, 9 * 16, 57 * 16, 9 * 16, 60 * 4, 60 * 2))
+
+    # Returns true if a hitbox is colliding with a wall at all
+    def colliding(x: float, y: float, hitbox: kn.Rect):
+        if tilemap.colliding(x, y, hitbox):
+            return True
+        for wall in dynamic_walls:
+            if wall.colliding(x, y, hitbox):
+                return True
+        return False
+    
+    # Returns either (hitbox, (x vel, y vel)) or None depending on if there is a collision at the spot or not
+    def colliding_with(x: float, y: float, hitbox: kn.Rect) -> tuple[kn.Rect, tuple[float, float]] | None:
+        tm = tilemap.colliding_with(x, y, hitbox)
+        if not tm is None:
+            return (tm, (0, 0))
+        for wall in dynamic_walls:
+            if wall.colliding(x, y, hitbox):
+                return (wall.hitbox(), wall.velocity())
+        return None
+
     # Really basic particle spawner that randomly places particles with a given direction and spread
     def spawn_particles(count: int, lifetime: int, x: float, y: float, angle: float, speed: float, spread: float, tex: kn.Texture):
         for i in range(count):
@@ -181,9 +269,11 @@ def main():
             p = Particle(x, y, cos(dir) * speed, sin(dir) * speed, lifetime, tex)
             particles.append(p)
     
-    # We are using tilemap-based collisions, and KrakenEngine currently does not support getting
-    # the tilemap data from the raw tiled file, so we manually extract it from the .tmx file here.
-    # This is just one possible way to approach this problem.
+    ####################################### Tilemap Loading ########################################
+    # We are using tilemap-based collisions, and KrakenEngine currently does not support getting   #
+    # the tilemap data from the raw tiled file, so we manually extract it from the .tmx file here. #
+    # This is just one possible way to approach this problem.                                      #
+    ################################################################################################
     tilemap = TileMap(200, 18, 16, 16)
     tree = ET.parse("assets/level.tmx")
     root = tree.getroot()
@@ -242,7 +332,7 @@ def main():
             facing = 1
 
         # Allows the player to still jump for a small period after leaving a platform
-        if tilemap.colliding(player_x, player_y + 1, player_hitbox):
+        if colliding(player_x, player_y + 1, player_hitbox):
             # Player just landed, play sound and particle effects
             if jump_grace_duration <= 0: 
                 kn.Audio.play(aud_land)
@@ -266,30 +356,44 @@ def main():
                 in_extra_jump = True
         just_pressed_timer -= 1
 
+        # We need to move with the platform if we are standing on a moving platform
+        collider = colliding_with(player_x, player_y + 1, player_hitbox)
+        true_hspeed = h_speed
+        true_vspeed = v_speed
+        if not collider is None:
+            true_hspeed += collider[1][0]
+            true_vspeed += collider[1][1]
+
+        # We need to update the walls before the player collisions to avoid moving into the wall
+        for wall in dynamic_walls:
+            wall.update()
+
         ######################## General purpose collisions ########################
         # These work by checking if the player is about to walk into a wall, and   #
         # if so we move the player as close to the wall as possible without being  #
         # inside the wall. For rounding purposes, there are some 0.01's scattered  #
         # around, remove them to see the difference they make.                     #
         ############################################################################
-        collider = tilemap.colliding_with(player_x + h_speed, player_y - 0.01, player_hitbox)
+        collider = colliding_with(player_x + true_hspeed, player_y - 0.01, player_hitbox)
         if not collider is None:
-            if h_speed > 0:
-                player_x = collider.x - (player_hitbox.w + player_hitbox.x + 0.01)
-            elif h_speed < 0:
-                player_x = collider.right - player_hitbox.x
+            if true_hspeed > 0:
+                player_x = collider[0].x - (player_hitbox.w + player_hitbox.x + 0.01)
+            elif true_hspeed < 0:
+                player_x = collider[0].right - player_hitbox.x
             h_speed = 0
-        player_x += h_speed
+            true_hspeed = 0
+        player_x += true_hspeed
 
         # Same thing but vertically
-        collider = tilemap.colliding_with(player_x, player_y + v_speed, player_hitbox)
+        collider = colliding_with(player_x, player_y + true_vspeed, player_hitbox)
         if not collider is None:
-            if v_speed > 0:
-                player_y = collider.y - (player_hitbox.h + player_hitbox.y)
-            elif h_speed < 0:
-                player_y = collider.bottom - player_hitbox.y + 0.01
+            if true_vspeed > 0:
+                player_y = collider[0].y - (player_hitbox.h + player_hitbox.y)
+            elif true_vspeed < 0:
+                player_y = collider[0].bottom - player_hitbox.y + 0.01
             v_speed = 0
-        player_y += v_speed
+            true_vspeed = 0
+        player_y += true_vspeed
 
         # If the player is moving at at least 15% top speed and on the ground we play a walking sound effect
         # once every walk_timer frames.
@@ -327,15 +431,21 @@ def main():
         ground_layer.render()
         decoration_layer.render()
 
+        # Draw moving walls
+        for wall in dynamic_walls:
+            wall.draw()
+
         # Foreground layers are also parallax but in front of the level
         for (para, tex_layer) in zip(fg_layer_parallaxes, tex_fg_layers):
             tile_horizontally(tex_layer, camera.pos.x * para)
 
-        # Choose which animation we need to play for the player based on
-        #   1. Are they mid-air?
-        #     a) If they are, are they on the double jump?
-        #   2. Are they walking or idling?
-        #   3. Which way are they facing?
+        ########################### Animations ###########################
+        # Choose which animation we need to play for the player based on #
+        #   1. Are they mid-air?                                         #
+        #     a) If they are, are they on the double jump?               #
+        #   2. Are they walking or idling?                               #
+        #   3. Which way are they facing?                                #
+        ##################################################################
         if facing == -1:
             if v_speed != 0:
                 player_animations.set("player_jump_left" if in_extra_jump else "player_jump_left_first")
@@ -353,9 +463,11 @@ def main():
         frame = player_animations.current_frame
         kn.renderer.draw(frame.tex, kn.Rect(player_x, player_y, 16, 16), frame.src)
 
-        # Particles all have a set lifetime, so we keep track of each particle that has
-        # reached the end of its lifetime in the kill_list, then we go through the kill
-        # list after updating/drawing particles and remove them from the particle list.
+        ################################### Particles ###################################
+        # Particles all have a set lifetime, so we keep track of each particle that has #
+        # reached the end of its lifetime in the kill_list, then we go through the kill #
+        # list after updating/drawing particles and remove them from the particle list. #
+        #################################################################################
         kill_list = []
         for p in particles:
             if p.draw(0, gravity):
@@ -363,8 +475,10 @@ def main():
         for p in kill_list:
             particles.remove(p)
 
-        # We center the camera on the player and slowly ease the camera towards that point, instead of instantly
-        # snapping it on the player.
+        ################################################# Camera #################################################
+        # We center the camera on the player and slowly ease the camera towards that point, instead of instantly #
+        # snapping it on the player.                                                                             #
+        ##########################################################################################################
         target_x = player_x - (400 / 2)
         target_y = player_y - (288 / 2)
         camera.pos = (clamp(camera.pos.x + (target_x - camera.pos.x) * 0.25, 0, tilemap.total_width() - 400), 
